@@ -8,13 +8,6 @@ from tqdm import tqdm
 from pytorch_transformers import *
 
 
-#from data_loader import get_loader
-from model_pytorch import LMModel, load_openai_pretrained_model #,BaseNoPlanModel, BasePlanModel,GraphNoAdjPlanModel,GraphAdjPlanModel,\
-                            #BasePlanSepLayerModel, GraphNoAdjPlanSepLayerModel, GraphAdjPlanSepLayerModel
-from parallel import DataParallelModel
-from text_utils import TextEncoder
-
-
 def generate_paragraph(model, args, text_encoder, device, beam, gen_len, k, p, decoding_strategy, min_len=None):
     src_strs, tgt_strs, gen_strs = [], [], []
     mask = args[1]    
@@ -35,63 +28,6 @@ def generate_paragraph(model, args, text_encoder, device, beam, gen_len, k, p, d
     return src_strs, tgt_strs, gen_strs
 
 
-'''
-def generate_outputs_st1(model, pad_output, mask_output, plans, other, text_encoder, device, beam, gen_len, k, p, decoding_strategy, min_len=None):
-    src_strs, tgt_strs, gen_strs = [], [], []
-    mask = mask_output
-    n_gpu = torch.cuda.device_count()
-    outputs = model(pad_output, mask_output, plans, text_encoder, device, beam=beam, gen_len=gen_len, k=k, p=p, decoding_strategy=decoding_strategy, generate=True, min_len=min_len)
-    #print(len(outputs[0]))
-   # for i in range(len(outputs[0])):
-    if n_gpu == 1:
-        outputs = [outputs]
-    for generated_toks,input_toks,target_toks in outputs: ##outputs[0][i],outputs[1][i],outputs[2][i] 
-        for idx in range(generated_toks.size(0)):
-                src_str = other[0]
-                src_strs.append(src_str)
-                tgt_str = toks_to_str(target_toks[idx], text_encoder)
-                tgt_strs.append(tgt_str)
-                gen_str = toks_to_str(generated_toks[idx], text_encoder)
-                gen_strs.append(gen_str)
-    return src_strs, tgt_strs, gen_strs
-
-def generate_outputs_from_kw(model, pad_output, mask_output, kw, kwmask, text_encoder, device, beam, gen_len, k, p, decoding_strategy, min_len=None):
-    src_strs, tgt_strs, gen_strs = [], [], []
-    mask = mask_output
-    n_gpu = torch.cuda.device_count()
-    outputs = model(pad_output, mask_output, kw, kwmask, text_encoder, device, beam=beam, gen_len=gen_len, k=k, p=p, decoding_strategy=decoding_strategy, generate=True, min_len=min_len)
-    #print(len(outputs[0]))
-   # for i in range(len(outputs[0])):
-    if n_gpu == 1:
-        outputs = [outputs]
-    for generated_toks, input_toks, target_toks in outputs: ##outputs[0][i],outputs[1][i],outputs[2][i] 
-        for idx in range(generated_toks.size(0)):
-                src_str = toks_to_str(input_toks[idx], text_encoder)
-                src_strs.append(src_str)
-                tgt_str = toks_to_str(target_toks[idx], text_encoder)
-                tgt_strs.append(tgt_str)
-                gen_str = toks_to_str(generated_toks[idx], text_encoder)
-                gen_strs.append(gen_str)
-    return src_strs, tgt_strs, gen_strs
-
-def generate_outputs(model, pad_output, mask_output, text_encoder, device, beam, gen_len, k, p, decoding_strategy, min_len=None):
-    src_strs, tgt_strs, gen_strs = [], [], []
-    mask = mask_output
-    n_gpu = torch.cuda.device_count()
-    outputs = model(pad_output, mask_output, text_encoder, device, beam=beam, gen_len=gen_len, k=k, p=p, decoding_strategy=decoding_strategy, generate=True, min_len=min_len)
-    #print(len(outputs[0]))
-   # for i in range(len(outputs[0])):
-    if n_gpu == 1:
-        outputs = [outputs]
-    for generated_toks,input_toks,target_toks in outputs: ##outputs[0][i],outputs[1][i],outputs[2][i] 
-        for idx in range(generated_toks.size(0)):
-                src_str = toks_to_str(input_toks[idx], text_encoder, is_input=True, mask=mask[idx])
-                src_strs.append(src_str)
-                tgt_str = toks_to_str(target_toks[idx], text_encoder)
-                tgt_strs.append(tgt_str)
-                gen_str = toks_to_str(generated_toks[idx], text_encoder)
-                gen_strs.append(gen_str)
-    return src_strs, tgt_strs, gen_strs'''
 
 def toks_to_str(toks, text_encoder, is_input=False, mask=None, ctx=102):
     str_rep = []

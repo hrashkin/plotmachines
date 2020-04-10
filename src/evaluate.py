@@ -13,18 +13,14 @@ import torch
 import torch.nn as nn
 import rouge
 from transformers import *
-from opt import OpenAIAdam
-from text_utils import TextEncoder
-#from data_loader import get_loader
+
 from tqdm import tqdm
 from generate  import generate_paragraph
 from data_loader import get_paragraph_input_loader, get_paragraph_history_input_loader
 from decodermodules import DocumentDecoderModel, DocumentMemoryDecoderModel
 
-from loss import ParagraphLoss, ParagraphAndAuxLoss
-from model_pytorch import load_openai_pretrained_model
+from loss import ParagraphLoss
 from parallel import DataParallelModel, DataParallelCriterion
-from model_pytorch import LMModel, load_openai_pretrained_model, JustDecoderModel
 
 def clear_dirs(gen_dir, tgt_dir):
     for f in glob.glob("{}/*".format(tgt_dir)):
@@ -189,15 +185,9 @@ def run_batch(model, args, device, compute_loss_fct, splitlosses, auxloss=False)
         if arg is not None:
             arg = arg.to(device)
 
-    if not auxloss:
-        output = model(*args)
-        allloss = compute_loss_fct(output, args[0], args[1], splitlosses=splitlosses)
-    elif auxloss:
-        output = model(*args, returnlast=True)
-        if torch.cuda.device_count() == 1:
-            allloss = compute_loss_fct(*output, *args, splitlosses=splitlosses)
-        else:
-            allloss = compute_loss_fct(output, *args, splitlosses=splitlosses)
+    output = model(*args)
+    allloss = compute_loss_fct(output, args[0], args[1], splitlosses=splitlosses)
+
     if splitlosses:
         return allloss
     return allloss.mean()
@@ -209,8 +199,6 @@ def evaluate(val_loader, model, device, compute_loss_fct, foutname, splitlosses,
         val_loss = {}
     for j, args in enumerate(tqdm(val_loader)):
         with torch.no_grad():
-            '''if j == train_log_interval:
-                break'''
             l = run_batch(model, args, device, compute_loss_fct, splitlosses=splitlosses, auxloss=auxloss)
             if splitlosses:
                 for idx in range(len(l)):
@@ -264,7 +252,7 @@ def main(args):
     if args.use_model == "full":
         val_loader = get_paragraph_input_loader(datafile, n_gpu, text_encoder, 
                                                     num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, 
-                                                    include_neigh= args.use_neighbor_feat, include_curr= args.use_aux_losses, 
+                                                    include_neigh= args.use_neighbor_feat, include_curr= False, 
                                                     include_kw = not args.exclude_kw, max_size=args.max_ex, dim = args.n_embd, debug_mode=args.debug_mode)
 
 
@@ -290,12 +278,8 @@ def main(args):
 
     criterion = nn.CrossEntropyLoss(reduction="none")
 
-    if args.use_aux_losses:
-        lm_loss = ParagraphAndAuxLoss(criterion, opt=None, n_ctx=n_ctx, gen_len=gen_len)
-        auxloss = True
-    else:
-        lm_loss = ParagraphLoss(criterion, n_ctx=n_ctx, gen_len=gen_len)
-        auxloss=False
+    lm_loss = ParagraphLoss(criterion, n_ctx=n_ctx, gen_len=gen_len)
+    auxloss=False
 
     doc_model.to(device)
     if n_gpu > 1:
@@ -315,7 +299,7 @@ def main(args):
     print("Parallelized")
 
     vort = 'test' if args.testset else 'val'
-    evaluate(val_loader, doc_model, device, lm_loss, os.path.join(args.save_dir,vort+'LOSS.txt'), splitlosses=True, auxloss=auxloss)
+    evaluate(val_loader, doc_model, device, lm_loss, os.path.join(args.save_dir,vort+'LOSS.txt'), splitlosses=True, auxloss=False)
     evaluate_doc_model(doc_model, val_loader, text_encoder, device, beam, gen_len, k, p, args.decoding_strategy, os.path.join(args.save_dir,vort+'ROUGE.json'), 'gen','tgt', gen_len, [], args)
 
 
@@ -371,7 +355,6 @@ if __name__ == "__main__":
     parser.add_argument('--bodynum', type=int, default=3)
     parser.add_argument('--show_progress', action='store_true')
     parser.add_argument('--use_neighbor_feat', action='store_true')
-    parser.add_argument('--use_aux_losses', action='store_true')
     parser.add_argument('--use_kwmem', action='store_true')
     parser.add_argument('--exclude_kw', action='store_true')
     parser.add_argument('--testset', action='store_true')

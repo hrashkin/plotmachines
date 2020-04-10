@@ -1,23 +1,17 @@
 import argparse
 import os
 import random
-
 import numpy as np
 import rouge
 import torch
 from torch import nn
 from tqdm import tqdm
-from evaluate import format_text
 
+from evaluate import format_text, evaluate_doc_model
 from data_loader import get_paragraph_input_loader, get_document_full_loader
-from evaluate import evaluate_doc_model
 from decodermodules import DocumentDecoderModel, DocumentMemoryDecoderModel
 from generate import toks_to_str
-from loss import ParagraphLoss, ParagraphAndAuxLoss
-from model_pytorch import load_openai_pretrained_model
-from opt import OpenAIAdam
 from parallel import DataParallelModel, DataParallelCriterion
-from text_utils import TextEncoder
 from transformers import *
 
 def tfmclassifier(textlines, model, tokenizer, gen_len):
@@ -323,7 +317,6 @@ if __name__ == "__main__":
     parser.add_argument('--repeattheta', type=float, default=1.5)
     parser.add_argument('--show_progress', action='store_true')
     parser.add_argument('--use_neighbor_feat', action='store_true')
-    parser.add_argument('--use_aux_losses', action='store_true')
     parser.add_argument('--exclude_kw', action='store_true')
     parser.add_argument('--use_kwmem', action='store_true')
     parser.add_argument('--testset', action='store_true')

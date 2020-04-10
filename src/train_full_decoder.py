@@ -2,26 +2,22 @@ import shutil
 import argparse
 import os
 import random
-
 import numpy as np
 import rouge
 import torch
 from torch import nn
 from tqdm import tqdm
-from evaluate import format_text
 import math
+
 from data_loader import get_paragraph_input_loader, get_paragraph_history_input_loader
-from evaluate import evaluate_doc_model
+from evaluate import format_text, evaluate_doc_model
 from generate import generate_paragraph
 from decodermodules import DocumentDecoderModel, DocumentMemoryDecoderModel
-
 from logger import Logger
-from loss import ParagraphLoss, ParagraphAndAuxLoss
-from model_pytorch import load_openai_pretrained_model
-from opt import OpenAIAdam
+from loss import ParagraphLoss
 from parallel import DataParallelModel, DataParallelCriterion
-from text_utils import TextEncoder
 from transformers import *
+
 def get_average_scores(hyps, refs, maxlen=400, stop_words=[]):       
     rouge_scorer = rouge.Rouge()
     averaged_scores = {'rouge-1': {'f': 0, 'p': 0, 'r': 0},
@@ -43,17 +39,9 @@ def run_batch(model, args, device, compute_loss_fct, splitlosses, auxloss=False)
         if arg is not None:
             arg = arg.to(device)
 
-    if not auxloss:
-        output = model(*args)
-        allloss = compute_loss_fct(output, args[0], args[1], splitlosses=splitlosses)
-        #print(allloss, args[1][:,-401:].sum(dim=1))
-    elif auxloss:
-        output = model(*args, returnlast=True)
-        if torch.cuda.device_count() == 1:
-            allloss = compute_loss_fct(*output, *args, splitlosses=splitlosses)
-        else:
-            allloss = compute_loss_fct(output, *args, splitlosses=splitlosses)
-  
+    output = model(*args)
+    allloss = compute_loss_fct(output, args[0], args[1], splitlosses=splitlosses)
+    
     if splitlosses:
         return allloss
     return allloss.mean()
@@ -286,12 +274,12 @@ def main(args):
     if args.use_model == "full":
         train_loader = get_paragraph_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
                                                     num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True, 
-                                                    include_neigh= args.use_neighbor_feat, include_curr= args.use_aux_losses, max_size=args.max_ex,
+                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size=args.max_ex,
                                                     include_kw = not args.exclude_kw, dim = args.n_embd, debug_mode=args.debug_mode)
 
         val_loader = get_paragraph_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
                                                     num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= args.use_aux_losses, max_size=args.num_val_examples,
+                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size=args.num_val_examples,
                                                     include_kw = not args.exclude_kw, dim = args.n_embd, debug_mode=args.debug_mode)
 
         print("Train length: {}, Validation length: {}".format(len(train_loader), len(val_loader)))
@@ -300,12 +288,12 @@ def main(args):
         #asli
         train_loader = get_paragraph_history_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
                                                     num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= args.use_aux_losses, max_size = args.max_ex,
+                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size = args.max_ex,
                                                     include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=args.use_kwmem, debug_mode=args.debug_mode)
 
         val_loader = get_paragraph_history_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
                                                     num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= args.use_aux_losses, max_size = args.num_val_examples,
+                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size = args.num_val_examples,
                                                     include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=args.use_kwmem, debug_mode=args.debug_mode)
 
         print("Train length: {}, Validation length: {}".format(len(train_loader), len(val_loader)))
@@ -343,15 +331,10 @@ def main(args):
                            #warmup=args.lr_warmup,
                            #t_total=n_updates_total,
 
-    if args.use_aux_losses:
-        lm_loss = ParagraphAndAuxLoss(criterion, opt=None, n_ctx=n_ctx, gen_len=gen_len)
-        auxloss = True
-    else:
-        lm_loss = ParagraphLoss(criterion, n_ctx=n_ctx, gen_len=gen_len)
-        auxloss=False
+    lm_loss = ParagraphLoss(criterion, n_ctx=n_ctx, gen_len=gen_len)
+    auxloss=False
 
     print("Loading Model")
-    ###load_openai_pretrained_model(doc_model.decoder, n_ctx=n_ctx+gen_len, n_special=n_special, path="model/", path_names="model/")
     doc_model.to(device)
     if n_gpu > 1:
         doc_model = DataParallelModel(doc_model)
@@ -364,7 +347,7 @@ def main(args):
 
     start_iter, running_loss = load_checkpoint(args.checkpoint, doc_model, model_opt)
     for i in range(args.num_epochs):
-        start_iter, running_loss, bestloss, updates, val_loss1 = run_epoch(bestloss, start_iter, running_loss, doc_model, lm_loss, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k, p, decoding_strategy, accum_iter, "FT Training Epoch [{}/{}]".format(i + 1, args.num_epochs), save_dir, logger, text_encoder, show_progress=args.show_progress, auxloss=auxloss, my_local_dir=save_dir_local)
+        start_iter, running_loss, bestloss, updates, val_loss1 = run_epoch(bestloss, start_iter, running_loss, doc_model, lm_loss, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k, p, decoding_strategy, accum_iter, "FT Training Epoch [{}/{}]".format(i + 1, args.num_epochs), save_dir, logger, text_encoder, show_progress=args.show_progress, auxloss=False, my_local_dir=save_dir_local)
         print("VAL LOSS: ", str(val_loss1))
         if val_loss1 > prevloss or math.isnan(val_loss1):
             break
@@ -433,7 +416,6 @@ if __name__ == "__main__":
     parser.add_argument('--n_ctx', type=int, default=102)
     parser.add_argument('--show_progress', action='store_true')
     parser.add_argument('--use_neighbor_feat', action='store_true')
-    parser.add_argument('--use_aux_losses', action='store_true')
     parser.add_argument('--exclude_kw', action='store_true')
     parser.add_argument('--max_ex', type=int, default=None)
     parser.add_argument('--min_len', type=int, default=100)
