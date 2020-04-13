@@ -18,10 +18,10 @@ shutil
 
 ## Training PlotMachines models
 E.g.:
-`python train.py --data_dir datadir --output_dir savedir --experiment_name pmfull --accum_iter 4 --n_batch 64 --p 90 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse`
+```python train.py --data_dir datadir --output_dir savedir --experiment_name pmfull --accum_iter 4 --n_batch 64 --p 90 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse```
 
 
-Some important command line arguments:
+### Important command line arguments:
   - ```use_neighbor_feat``` : use representation of previous paragraph in input (i.e neighboring features)
   - ```use_discourse``` : whether to use discourse type tags (`_i_`,`_b_`,`_c_`) or not
   - ```use_model={base/plotmachines}```: either the base gpt model without memory, or PlotMachines with memory
@@ -32,23 +32,19 @@ Some important command line arguments:
   - ```p ={int}```: the % to use in nucleus sampling
   - ```repeattheta={float}```: how much to penalize repetitions. should be a float >= 1. (1=no penalty)
 
-
-At the end of running the outputs are stored in output_dir/experiment_name/checkpoints:
-  - `checkpoint_best.pt`: best checkpoint from training
-  - `valeval.log` : a summary of rouge scores for single paragraph prediction post-training
-  - `valeval.log.output.json` : generated outputs from paragraph prediction post-training
-
-and output_dir/experiment_name/logs:
-  - `output_losses.tsv` : log of loss scores on train/val examples throughout training
-  - `output_rouge.tsv` : log of rouge scores on five val examples throughout training
+### Output files
+At the end of running the outputs are stored in:
+  - `{output_dir}/{experiment_name}/checkpoints/checkpoint_best.pt`: best checkpoint from training
+  - `{output_dir}/{experiment_name}/logs/output_losses.tsv` : log of loss scores on train/val examples throughout training
+  - `{output_dir}/{experiment_name}/logs/output_rouge.tsv` : log of rouge scores on five val examples throughout training
 
 
 ## Generating stories
 
 E.g.:
-`python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 90 --load_dir savedir/pmfull/checkpoints --use_model plotmachines --use_neighbor_feat --use_discourse`
+```python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 90 --load_dir savedir/pmfull/checkpoints --use_model plotmachines --use_neighbor_feat --use_discourse```
 
-Important command line arguments:
+### Important command line arguments:
   - ```bodynum={int}```: number of body paragraphs to generate (default=3, for 5 paragraph format)
   - ```testset```: use test set instead of validation
   - ```use_model={base/plotmachines}```: either the base gpt model without memory, or PlotMachines with memory
