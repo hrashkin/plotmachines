@@ -15,7 +15,6 @@ from transformers import *
 
 from tqdm import tqdm
 from generate_utils  import generate_paragraph
-from data_loader import get_paragraph_input_loader, get_paragraph_history_input_loader
 
 def clear_dirs(gen_dir, tgt_dir):
     for f in glob.glob("{}/*".format(tgt_dir)):
@@ -33,8 +32,7 @@ def format_text(text, max_len, stop_words=[]):
         text = " ".join(text.split(" ")[:max_len])
     return text.encode('ascii','ignore').decode("ascii","ignore")
 
-
-def get_average_scores(hyps, refs, maxlen=400, stop_words=[]):       
+def get_average_scores(jsonfile, srcs,hyps, refs,maxlen=110, stop_words=[]):
     rouge_scorer = rouge.Rouge()
     averaged_scores = {'rouge-1': {'f': 0, 'p': 0, 'r': 0},
                        'rouge-2': {'f': 0, 'p': 0, 'r': 0},
@@ -48,7 +46,10 @@ def get_average_scores(hyps, refs, maxlen=400, stop_words=[]):
     for key in averaged_scores.keys():
         for sub_key in averaged_scores[key].keys():
             averaged_scores[key][sub_key] /= len(hyps)
+    for i in range(len(srcs)):
+        jsonfile.write(json.dumps({'r1': scores[i]['rouge-1'], 'r2': scores[i]['rouge-2'], 'rl': scores[i]['rouge-l'],'hyp':hyps[i], 'ref':refs[i],'src':srcs[i]})+"\n")
     return averaged_scores
+
 
 
 

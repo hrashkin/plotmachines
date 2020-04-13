@@ -9,7 +9,7 @@ from torch import nn
 from tqdm import tqdm
 import math
 
-from data_loader import get_paragraph_input_loader, get_paragraph_history_input_loader
+from data_loader import get_paragraph_input_loader, get_paragraph_memory_input_loader
 from eval_utils import format_text, evaluate_doc_model
 from generate_utils import generate_paragraph
 from model import GPT2BaseModel, PlotMachinesModel

@@ -35,6 +35,7 @@ def tfmclassifier(textlines, model, tokenizer, gen_len):
 def generate_paragraph(model, args, text_encoder, device, beam, gen_len, k, p, decoding_strategy, ids, tagnum, min_len=None, returnnewmem=False):
     src_strs, tgt_strs, gen_strs, genraw, gentok = [], [], [], [], []
     n_gpu = torch.cuda.device_count()
+    
     outputs = model(*args, text_encoder=text_encoder, device=device, beam=beam, gen_len=gen_len, k=k, p=p, decoding_strategy=decoding_strategy, generate=True, min_len=min_len)
     if n_gpu == 1:
         outputs = [outputs]
@@ -47,7 +48,7 @@ def generate_paragraph(model, args, text_encoder, device, beam, gen_len, k, p, d
                 gentok.append(generated_toks[idx].view(1,-1))
                 seenout.append(seenuni[idx])
                 #print(toks_to_str(input_toks[idx], text_encoder, is_input=True))
-                gen_str = toks_to_str(generated_toks[idx], text_encoder)
+                gen_str = toks_to_str(generated_toks[idx], text_encoder).replace("\n", " ")
                 genraw.append(gen_str)
                 gen_strs.append(str(ids[2][i].item()) + "\t"+str(ids[0][i])+"\t"+ str(ids[1][i]) +"\t"+str(tagnum)+"\t"+gen_str)
                 i+=1
@@ -58,7 +59,7 @@ def generate_paragraph(model, args, text_encoder, device, beam, gen_len, k, p, d
             for idx in range(generated_toks.size(0)):
                 gentok.append(generated_toks[idx].view(1,-1))
                 #print(toks_to_str(input_toks[idx], text_encoder, is_input=True))
-                gen_str = toks_to_str(generated_toks[idx], text_encoder)
+                gen_str = toks_to_str(generated_toks[idx], text_encoder).replace("\n", " ")
                 genraw.append(gen_str)
                 gen_strs.append(str(ids[2][i].item()) + "\t"+str(ids[0][i])+"\t"+ str(ids[1][i]) +"\t"+str(tagnum)+"\t"+gen_str)
                 i+=1
@@ -123,7 +124,7 @@ def generatedocs(model, gptmodel, gpttok, val_loader, text_encoder, device, beam
                         prevprc = tfmclassifier(prev, gptmodel, gpttok, gen_len)
                     if args.use_discourse:
                         pad_seq[:,args.n_ctx-1] =  text_encoder.added_tokens_encoder[tag] # add discourse marker
-                    modelargs = (pad_seq, mask_seq, prevprc, None, seenunigrams, idces)
+                    modelargs = (pad_seq, mask_seq, prevprc, seenunigrams, idces)
                     gen_strs, genraw, gentok, seenunigrams  = generate_paragraph(model, modelargs, text_encoder, device, beam, gen_len, k, p, decoding_strategy, docids, tnum, min_len=args.min_len)
                 data["gen"].extend(gen_strs)
                 prev = genraw
@@ -140,7 +141,7 @@ def generatedocs(model, gptmodel, gpttok, val_loader, text_encoder, device, beam
     while trial < 10:
         try:
             print('Copying the generated file from ' + localfile + ' to ' + save_file)
-            shutil.copy(localfile, save_file)
+            shutil.move(localfile, save_file)
             trial = 100
         except Exception as e:
             print(e)
@@ -237,7 +238,7 @@ def main(args):
     tagset = ['_i_'] + args.bodynum* ['_b_'] + ['_c_']
     vort = 'test' if args.testset else 'val'
     generatedocs(doc_model, gptclf, gpttok, val_loader, text_encoder, device, beam, gen_len, k, p, args.decoding_strategy, os.path.join(args.save_dir,vort+'.gens.tsv'),
-                 'gen','tgt', gen_len, [], args, tags = tagset, dim=args.n_embd, save_dir=args.save_dir, localfile=os.path.join(args.data_dir,vort+'.gens.tsv'))
+                 'gen','tgt', gen_len, [], args, tags = tagset, dim=args.n_embd, save_dir=args.save_dir, localfile=os.path.join('/tmp',vort+'.gens.tsv'))
 
     print('done decoding....')
 

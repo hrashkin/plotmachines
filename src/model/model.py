@@ -13,6 +13,7 @@ class GPT2NeighborModel(GPT2Model):
 
     def forward(self, input_ids, past=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, labels=None, includeprev=False, x_prev=None):
         if includeprev:
+            #if need to add previous paragraph
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
             if token_type_ids is not None:
@@ -263,12 +264,12 @@ class GPT2BaseModel(nn.Module):
 
     def generate(self, *args, text_encoder=None, device=None, beam=0, gen_len=401, k=0, p=0, decoding_strategy=0, min_len=None):
         ##print(len(args))
-        if len(args) == 6:
-            pad_output, mask, prev, seen_trigrams, idxes = args
-        else:
-            pad_output, mask, prev = args
-            seen_trigrams = torch.ones(pad_output.size(0), len(text_encoder)).to(pad_output.device)
-            idxes = None
+        #if len(args) == 5:
+        pad_output, mask, prev, seen_trigrams, idxes = args
+        #else:
+        #    pad_output, mask, prev = args
+        #    seen_trigrams = torch.ones(pad_output.size(0), len(text_encoder)).to(pad_output.device)
+        #    idxes = None
         classify_idx = None  # don't use this in the code anymore
         eos_idx = text_encoder.eos_token_id
         input_toks = pad_output[:, :self.n_ctx] # includes delimiter
@@ -292,7 +293,7 @@ class GPT2BaseModel(nn.Module):
 class MemoryAttention(nn.Module):
     '''An Attention Block for attending over the memory slots with word tokens as queries'''
     def __init__(self, nx, n_ctx, config, scale=False):
-        super(ExtraNotSelfAttention, self).__init__()
+        super(MemoryAttention, self).__init__()
         self.output_attentions = config.output_attentions
 
         n_state = nx  # in Attention: n_state=768 (nx=n_embd)
@@ -397,7 +398,7 @@ class MemoryAttention(nn.Module):
 
 class  GPT2MemoryBlock(nn.Module):
     def __init__(self, n_ctx, config, scale=False):
-        super(GPT2DualBlock, self).__init__()
+        super(GPT2MemoryBlock, self).__init__()
         nx = config.n_embd
         self.ln_1 = nn.LayerNorm(nx, eps=config.layer_norm_epsilon)
         self.attnextra = MemoryAttention(nx, n_ctx, config, scale)

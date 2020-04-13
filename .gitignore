@@ -1,1 +1,9 @@
 .DS_Store
+
+
+__pycache__/
+checkpoints_local/
+generate.sh
+out*/
+savedir/
+train.sh

@@ -222,7 +222,7 @@ include_kw: unused, if I want to ignore the context
 '''
 def get_fullstory_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None, n_ctx=102,
                              gen_len=401, include_kw=True):
-    dataset = DocumentDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len, include_kw=include_kw)
+    dataset = FullStoryDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len, include_kw=include_kw)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
 
 
