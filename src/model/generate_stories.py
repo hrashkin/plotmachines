@@ -111,7 +111,8 @@ def generatedocs(model, gptmodel, gpttok, val_loader, text_encoder, device, beam
                 if args.use_model =="plotmachines":
                     if args.use_neighbor_feat:
                         prevprc = tfmclassifier(prev, gptmodel, gpttok, gen_len)
-                    pad_seq [:,args.n_ctx-1] = text_encoder.added_tokens_encoder[tag] #add discourse marker
+                    if args.use_discourse:
+                        pad_seq [:,args.n_ctx-1] = text_encoder.added_tokens_encoder[tag] #add discourse marker
                     modelargs = (pad_seq, mask_seq, mem, mmask, ph, pmask, prevprc, seenunigrams, idces)
                     gen_strs, genraw, gentok, seenunigrams = generate_paragraph(model, modelargs, text_encoder, device, beam, gen_len, k, p, decoding_strategy, docids, tnum, min_len=args.min_len)
                     prevprc = tfmclassifier(genraw, gptmodel, gpttok,gen_len)

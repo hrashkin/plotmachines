@@ -269,12 +269,12 @@ def main(args):
     elif args.use_model == "plotmachines":
         #asli
         train_loader = get_paragraph_memory_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
-                                                    num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
+                                                    num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=args.use_discourse,
                                                     include_neigh= args.use_neighbor_feat, max_size = args.max_ex,
                                                     include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=True, debug_mode=args.debug_mode)
 
         val_loader = get_paragraph_memory_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
-                                                    num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
+                                                    num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=args.use_discourse,
                                                     include_neigh= args.use_neighbor_feat, max_size = args.num_val_examples,
                                                     include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=True, debug_mode=args.debug_mode)
 
