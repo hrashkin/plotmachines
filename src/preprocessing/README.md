@@ -29,6 +29,6 @@ This is a story generation dataset, presented in <a href="https://arxiv.org/abs/
 NYTimes, <a href="https://catalog.ldc.upenn.edu/LDC2008T19">The New York Times Annotated Corpus LDC2008T19</a>, contains news articles. 
 We use the scripts to parse NYT corpus and then split into train, validation and test using the list of keys provided in <a href="./nyt_splits.txt">nyt_splits.txt</a>
 
-Lastl, use the extract_outlines.py to extract the outline-labeled documents that can be used as input to the train Plotmachines fine-tuning models.
+Lastly, run the <a href="./extract_outlines.py">extract_outlines.py</a> to extract the outline-labeled documents that can be used as input to the train Plotmachines fine-tuning models. This script can extract the wikiplots data. 
 
 
