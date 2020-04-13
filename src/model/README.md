@@ -1,15 +1,22 @@
 # Instructions for training and running models:
-## 0) Prereqs:
-Required packages;
+### Prerequisites
+
 pytorch
+
 transformers
+
 spacy
+
 nltk
+
 tqdm
+
 ftfy
+
 rouge
 
-## 1) Train a new model using the train.py script.
+
+### Training PlotMachines models
 E.g.:
 `python train.py --data_dir datadir --output_dir savedir --experiment_name plotmachines --accum_iter 4 --n_batch 64 --p 60 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse`
 
@@ -36,7 +43,7 @@ and output_dir/experiment_name/logs:
   - `output_rouge.tsv` : log of rouge scores on five val examples throughout training
 
 
-## 2) Generate full documents from keywords.
+### Generating stories
 
 E.g.:
 `python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 60 --use_model full --load_dir savedir/modelv1/checkpoint`
@@ -58,8 +65,8 @@ At the end of running the outputs are stored in `output_dir`:
 
 
 
-## Notes
+### Additiona Notes
 Thanks to other codebases that were used in writing this code:
-Huggingface's original gpt repo
-Huggingface's current transformers repo
-Transformer for abstractive summarization (used for parallel model classes): https://github.com/Andrew03/transformer-abstractive-summarization
+  - Huggingface's original gpt repo
+  - Huggingface's current transformers repo
+  - Transformer for abstractive summarization (used for parallel model classes): https://github.com/Andrew03/transformer-abstractive-summarization
