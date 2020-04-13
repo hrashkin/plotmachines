@@ -13,10 +13,12 @@ tqdm
 
 rouge
 
+shutil
+
 
 ### Training PlotMachines models
 E.g.:
-`python train.py --data_dir datadir --output_dir savedir --experiment_name plotmachines --accum_iter 4 --n_batch 64 --p 60 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse`
+`python train.py --data_dir datadir --output_dir savedir --experiment_name pmfull --accum_iter 4 --n_batch 64 --p 90 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse`
 
 
 Some important command line arguments:
@@ -44,7 +46,7 @@ and output_dir/experiment_name/logs:
 ### Generating stories
 
 E.g.:
-`python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 60 --use_model full --load_dir savedir/modelv1/checkpoint`
+`python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 90 --load_dir savedir/pmfull/checkpoints --use_model plotmachines --use_neighbor_feat --use_discourse`
 
 Important command line arguments:
   - ```bodynum={int}```: number of body paragraphs to generate (default=3, for 5 paragraph format)
@@ -58,12 +60,16 @@ Important command line arguments:
   - ```repeattheta={float}```: how much to penalize repetitions. should be a float >= 1. (1=no penalty)
   - ```load_dir={str}```: the location of checkpoint_best.pt saved from training
 
-At the end of running the outputs are stored in `output_dir`:
-  - `{val/test}eval.tsv`: generated documents
+## Output format
+At the end of running the generated story outputs are stored in `output_dir`:
+  - `{val/test}eval.tsv`: generated stories
+Note, each row is a single story paragraph and the paragraphs of each story might not be in contiguous order.
+Each row contains:
+```story-idx story-name  plot-outline paragraph-idx  paragraph-text```
 
 
 
-### Additional Notes
+### Additional Notes and Acknowledgements
 Thanks to other codebases that were used in writing this code:
   - Huggingface's original gpt repo
   - Huggingface's current transformers repo
