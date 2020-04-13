@@ -29,8 +29,8 @@ Some important command line arguments:
   - ```n_batch={int}```: must be mulitple of number of gpus
   - ```output_dir```: a directory to save outputs to
   - ```data_dir```: location of all of the train/dev input files, each of which must be named {train/val/test}\_encoded.jsonl, should also contain {train/val/test}\_gpt.pkl files where the encoding of the previous paragraph is stored offline
-  -```p ={int}```: the % to use in nucleus sampling
-  -```repeattheta={float}```: how much to penalize repetitions. should be a float >= 1. (1=no penalty)
+  - ```p ={int}```: the % to use in nucleus sampling
+  - ```repeattheta={float}```: how much to penalize repetitions. should be a float >= 1. (1=no penalty)
 
 
 At the end of running the outputs are stored in output_dir/experiment_name/checkpoints:
