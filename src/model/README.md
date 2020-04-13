@@ -65,7 +65,7 @@ At the end of running the outputs are stored in `output_dir`:
 
 
 
-### Additiona Notes
+### Additional Notes
 Thanks to other codebases that were used in writing this code:
   - Huggingface's original gpt repo
   - Huggingface's current transformers repo
