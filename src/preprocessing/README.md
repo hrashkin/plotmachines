@@ -6,8 +6,11 @@ We construct three datasets for outline-conditioned generation. We focus on fict
 ### Prerequisites
 
 numpy
+
 Rake
+
 nltk
+
 TfidfVectorizer
 
 ### WikiPlots
