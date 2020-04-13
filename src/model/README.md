@@ -17,6 +17,7 @@ shutil
 
 
 ## Training PlotMachines models
+Using train.py, 
 E.g.:
 ```python train.py --data_dir datadir --output_dir savedir --experiment_name pmfull --accum_iter 4 --n_batch 64 --p 90 --num_epochs 10 --use_model plotmachines --use_neighbor_feat --use_discourse```
 
@@ -40,7 +41,7 @@ At the end of running the outputs are stored in:
 
 
 ## Generating stories
-
+Using generate_stories.py, 
 E.g.:
 ```python generate_stories.py --data_dir datadir --save_dir outputdir --n_batch 64 --p 90 --load_dir savedir/pmfull/checkpoints --use_model plotmachines --use_neighbor_feat --use_discourse```
 
