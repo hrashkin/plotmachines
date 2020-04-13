@@ -11,8 +11,6 @@ nltk
 
 tqdm
 
-ftfy
-
 rouge
 
 
