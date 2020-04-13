@@ -10,9 +10,9 @@ from tqdm import tqdm
 import math
 
 from data_loader import get_paragraph_input_loader, get_paragraph_history_input_loader
-from evaluate import format_text, evaluate_doc_model
-from generate import generate_paragraph
-from decodermodules import DocumentDecoderModel, DocumentMemoryDecoderModel
+from eval_utils import format_text, evaluate_doc_model
+from generate_utils import generate_paragraph
+from model import GPT2BaseModel, PlotMachinesModel
 from logger import Logger
 from loss import ParagraphLoss
 from parallel import DataParallelModel, DataParallelCriterion
@@ -34,26 +34,15 @@ def get_average_scores(hyps, refs, maxlen=400, stop_words=[]):
             averaged_scores[key][sub_key] /= len(hyps)
     return averaged_scores
 
-def run_batch(model, args, device, compute_loss_fct, splitlosses, auxloss=False):
+def run_batch(model, args, device, compute_loss_fct):
     for arg in args:
         if arg is not None:
             arg = arg.to(device)
 
     output = model(*args)
-    allloss = compute_loss_fct(output, args[0], args[1], splitlosses=splitlosses)
+    allloss = compute_loss_fct(output, args[0], args[1])
     
-    if splitlosses:
-        return allloss
     return allloss.mean()
-
-# def save_checkpoint(iter_num, running_loss, model_state_dict, optimizer_state_dict, save_dir):
-#     print('Saving a checkpoint...')
-#     torch.save({
-#         "iter": iter_num,
-#         "running_loss": running_loss,
-#         "state_dict": model_state_dict,
-#         "optimizer": optimizer_state_dict
-#     }, os.path.join(save_dir, "checkpoint_best.pt"))
 
 def save_checkpoint(iter_num, running_loss, model_state_dict, optimizer_state_dict, save_dir,my_local_dir):
     print('Saving a checkpoint...' + my_local_dir)
@@ -90,11 +79,6 @@ def load_checkpoint(checkpoint_file, model, model_opt):
             for key, value in state.items():
                 if isinstance(value, torch.Tensor):
                     state[key] = value.cuda()
-        #for key in list(state_dict.keys()):
-        #    state_dict[key[7:]] = state_dict[key]
-        #    del state_dict[key]
-        #pos_emb_mask = torch.zeros(1, 1, vocab)
-        #pos_emb_mask[:, :, -n_ctx] = -1e12
         model.load_state_dict(state_dict)
     else:
         start_iter = 1
@@ -102,28 +86,21 @@ def load_checkpoint(checkpoint_file, model, model_opt):
     return start_iter, running_loss
 
 
-def evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k,p, decoding_strategy, compute_loss_fct,splitlosses, auxloss=False, min_len=10):
+def evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k,p, decoding_strategy, compute_loss_fct, min_len=10):
     hyps, refs = [], []
     val_loss = 0
-    if splitlosses:
-        val_loss = {}
     for j, args in enumerate(val_loader):
         with torch.no_grad():
-            '''if j == train_log_interval:
-                break'''
             if j <= 5:
+                #evaluate Rouge on a very small subset of dev examples just to double check that training is working
                 model.eval()
                 # Generating outputs for evaluation
                 src_strs, new_refs, new_hyps = generate_paragraph(model, args, text_encoder, device, beam, gen_len, k,p, decoding_strategy, min_len=min_len)
                 hyps.extend(new_hyps)
                 refs.extend(new_refs)
             # Calculating loss
-            l = run_batch(model, args, device, compute_loss_fct, splitlosses=splitlosses, auxloss=auxloss)
-            if splitlosses:
-                for idx in range(len(l)):
-                    val_loss[idx] = val_loss.get(idx,0) + float(l[idx].mean().item())
-            else:
-                val_loss += float(l.item())
+            l = run_batch(model, args, device, compute_loss_fct)
+            val_loss += float(l.item())
     try:
         print('Hypothesis: {}'.format(hyps[0]))
         print("Reference: {}".format(refs[0]))
@@ -134,36 +111,45 @@ def evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, 
     return val_loss, scores
 
 def get_loss_value(num, denom):
-        """Log a scalar variable."""
-        if isinstance(num, (dict,list)):
-            v1,v2,v3,v4 = 0.,0.,0.,0
-            try:
-                v1 = num[0]/denom
-                v2 = num[1]/denom
-                v3 = num[2]/denom
-                v4 = num[3]/denom
-            except:
-                return 5.
-                pass
-            return v1+v2+v3+v4
-        else:
-            value = num/denom
-            return value
+    """Log a scalar variable."""
+    value = num/denom
+    return value
 
-def run_epoch(bestloss, start_iter, running_loss, model, compute_loss_fct, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k,p, decoding_strategy, accum_iter, desc_str, save_dir, logger, text_encoder, show_progress=False, summary_loss=None, planstart=0, auxloss=False, my_local_dir='checkpoints_local'):
-    
+
+'''Run a single training epoch:
+@params-
+bestloss: the best loss over any evaluation on the dev set
+start_iter: the batch in the epoch to start with 
+running_loss: the total loss since the last checkpoint update
+model: the model being trained
+compute_loss_fct: a loss function (from loss.py)
+model_opt: the argparse options
+train_loader, val_loader: training and validation data loaders
+train_log_interval,val_log_interval: how often to log training and validation losses
+device: cuda or cpu
+beam, gen_len, k, p, decoding_strategy: decoding parameters 
+accum_iter: how often to run backprop
+desc_str: string for showing progress, 
+save_dir: where to save checkpoints, 
+logger: class for logging progress (mostly for debugging), 
+text_encoder: the tokenizer, 
+show_progress=False: whether to log progress to the command line 
+summary_loss=None: not in use anymore
+my_local_dir='checkpoints_local': a local checkpoint storage if running on servers
+'''
+def run_epoch(bestloss, start_iter, running_loss, model, compute_loss_fct, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k,p, decoding_strategy, accum_iter, desc_str, save_dir, logger, text_encoder, show_progress=False, summary_loss=None, my_local_dir='checkpoints_local'):
+    '''
+    Run a single epoch, log results, and save best checkpoint
+    '''
     if show_progress:
         train_bar = tqdm(iterable=train_loader, desc=desc_str)
     else:
         train_bar = train_loader
-    
-    #val_loss, _ = evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k, p, decoding_strategy, compute_loss_fct, splitlosses=True, auxloss=auxloss, min_len=args.min_len)
-    #lv = get_loss_value(val_loss, len(val_loader))
-    #print(lv)
+
     for i, batchargs in enumerate(train_bar, start_iter):
         num_updates = i // accum_iter
         model.train()
-        loss = run_batch(model, batchargs, device, compute_loss_fct, splitlosses=False, auxloss=auxloss)
+        loss = run_batch(model, batchargs, device, compute_loss_fct)
         loss.backward()
 
         running_loss += float(loss.item())
@@ -178,14 +164,10 @@ def run_epoch(bestloss, start_iter, running_loss, model, compute_loss_fct, model
             logger.scalar_summary("Training", num=running_loss, denom=(train_log_interval * accum_iter), step=num_updates)
             print("training loss %.2f" % (running_loss/float(train_log_interval * accum_iter)))
             running_loss = 0
-        # if True:
+
         if num_updates % 1000 == 0 and i % accum_iter == 0:
-            val_loss, scores = evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k, p, decoding_strategy, compute_loss_fct, splitlosses=True, auxloss=auxloss, min_len=args.min_len)
-            # for key, value in scores.items():
-            #     for key2, value2 in value.items():
-            #         logger.rouge_summary("{}/{}".format(key, key2), value2, num_updates)
-            # print("Validation rouge: " + str(scores.items()))
-            #print("Validation loss: " + str(val_loss[0]/len(val_loader)))
+            val_loss, scores = evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k, p, decoding_strategy, compute_loss_fct, min_len=args.min_len)
+
             logger.scalar_summary("Validation", num=val_loss, denom=len(val_loader), step=num_updates)
             # if sum(val_loss) < bestloss or bestloss == -1:
             lv = get_loss_value(val_loss, len(val_loader))
@@ -194,23 +176,27 @@ def run_epoch(bestloss, start_iter, running_loss, model, compute_loss_fct, model
                 save_checkpoint(i + 1, running_loss, model.state_dict(), model_opt.state_dict(), save_dir, my_local_dir)
 
 
-    val_loss, scores = evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k, p, decoding_strategy, compute_loss_fct, splitlosses=True, auxloss=auxloss, min_len=args.min_len)
+    val_loss, scores = evaluate(val_loader, train_log_interval, model, text_encoder, device, beam, gen_len, k, p, decoding_strategy, compute_loss_fct, min_len=args.min_len)
     for key, value in scores.items():
         for key2, value2 in value.items():
             logger.rouge_summary("{}/{}".format(key, key2), value2, num_updates)
     print("Validation rouge: " + str(scores.items()))
-    #print("Validation loss: " + str(val_loss[0]/len(val_loader)))
     logger.scalar_summary("Validation", num=val_loss, denom=len(val_loader), step=num_updates)
-    #cumloss = sum(val_loss)/len(val_loader)
-    #if sum(val_loss) < bestloss or bestloss == -1:
     lv = get_loss_value(val_loss, len(val_loader))
     if (not math.isnan(lv)) and (bestloss == -1 or lv < bestloss):
         bestloss = lv
-        save_checkpoint(i + 1, running_loss, model.state_dict(), model_opt.state_dict(), save_dir,my_local_dir)
+        save_checkpoint(i + 1, running_loss, model.state_dict(), model_opt.state_dict(), save_dir, my_local_dir)
 
 
     torch.cuda.empty_cache()
     return i + 1, running_loss, bestloss, num_updates, lv
+
+def print_model_params(log_dir, doc_model):
+    fm = open(log_dir+"/modeldescr.txt","w")
+    fm.write(str(doc_model))
+    fm.close()
+    print(sum(p.numel() for p in doc_model.parameters() if p.requires_grad))
+
 
 def init(args):
     print("Creating directories")
@@ -231,11 +217,6 @@ def main(args):
     desc = args.desc
     data_dir = args.data_dir
     log_dir = os.path.join(args.output_dir, args.experiment_name, "logs")
-    # if not os.path.exists(log_dir):
-    #     os.makedirs(log_dir)
-    # if not os.path.exists(save_dir):
-    #     os.makedirs(save_dir)
-    #
     os.makedirs(log_dir, exist_ok=True)
     os.makedirs(save_dir, exist_ok=True)
     os.makedirs(save_dir_local, exist_ok=True)
@@ -271,68 +252,50 @@ def main(args):
     vocab = len(text_encoder)
 
     print("Loading dataset...")
-    if args.use_model == "full":
+    if args.use_model == "base":
         train_loader = get_paragraph_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
-                                                    num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True, 
-                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size=args.max_ex,
+                                                    num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=args.use_discourse, 
+                                                    include_neigh= args.use_neighbor_feat, max_size=args.max_ex,
                                                     include_kw = not args.exclude_kw, dim = args.n_embd, debug_mode=args.debug_mode)
 
         val_loader = get_paragraph_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
-                                                    num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size=args.num_val_examples,
+                                                    num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=args.use_discourse,
+                                                    include_neigh= args.use_neighbor_feat, max_size=args.num_val_examples,
                                                     include_kw = not args.exclude_kw, dim = args.n_embd, debug_mode=args.debug_mode)
 
         print("Train length: {}, Validation length: {}".format(len(train_loader), len(val_loader)))
+        doc_model = GPT2BaseModel(args, vocab=vocab, n_ctx=n_ctx, gen_len=gen_len, lastidx=text_encoder.eos_token_id, includeprev=args.use_neighbor_feat, use_offline_gpt2 = args.use_offline_gpt2)
 
-    elif args.use_model == "memory":
+    elif args.use_model == "plotmachines":
         #asli
-        train_loader = get_paragraph_history_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
+        train_loader = get_paragraph_memory_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder, 
                                                     num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size = args.max_ex,
-                                                    include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=args.use_kwmem, debug_mode=args.debug_mode)
+                                                    include_neigh= args.use_neighbor_feat, max_size = args.max_ex,
+                                                    include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=True, debug_mode=args.debug_mode)
 
-        val_loader = get_paragraph_history_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
+        val_loader = get_paragraph_memory_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
                                                     num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_discourse_type=True,
-                                                    include_neigh= args.use_neighbor_feat, include_curr= False, max_size = args.num_val_examples,
-                                                    include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=args.use_kwmem, debug_mode=args.debug_mode)
+                                                    include_neigh= args.use_neighbor_feat, max_size = args.num_val_examples,
+                                                    include_kw = not args.exclude_kw, memsize=args.memstatesize, dim = args.n_embd, use_kwmem=True, debug_mode=args.debug_mode)
 
         print("Train length: {}, Validation length: {}".format(len(train_loader), len(val_loader)))
-    elif  args.use_model == "vanilla":
-        train_loader = get_paragraph_input_loader(os.path.join(data_dir, "train_encoded.jsonl"), args.n_batch, text_encoder,
-                                                    num_workers=3, shuffle=True, gen_len=gen_len, n_ctx=n_ctx, max_size=args.max_ex, 
-                                                    include_kw = not args.exclude_kw, include_discourse_type=False, dim = args.n_embd, debug_mode=args.debug_mode)
-        val_loader = get_paragraph_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, 
-                                                    num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx,max_size=args.num_val_examples,
-                                                     include_kw = not args.exclude_kw, include_discourse_type=False, dim = args.n_embd, debug_mode=args.debug_mode)
-        print("Train length: {}, Validation length: {}".format(len(train_loader), len(val_loader)))
+        doc_model = PlotMachinesModel(args, vocab=vocab, n_ctx=n_ctx, gen_len=gen_len, lastidx=text_encoder.eos_token_id, includeprev=args.use_neighbor_feat, use_offline_gpt2 = args.use_offline_gpt2)
+    
+
 
     n_updates_total = (len(train_loader) // args.accum_iter) * (args.num_epochs)
 
+    if args.debug_mode:
+        print_model_params(log_dir, doc_model)
 
-    if args.use_model == "memory":
-        doc_model = DocumentMemoryDecoderModel(args, vocab=vocab, n_ctx=n_ctx, gen_len=gen_len, lastidx=text_encoder.eos_token_id, includeprev=args.use_neighbor_feat, use_offline_gpt2 = args.use_offline_gpt2)
-    else:
-        doc_model = DocumentDecoderModel(args, vocab=vocab, n_ctx=n_ctx, gen_len=gen_len, lastidx=text_encoder.eos_token_id, includeprev=args.use_neighbor_feat, use_offline_gpt2 = args.use_offline_gpt2)
-    fm = open(log_dir+"/modeldescr.txt","w")
-    fm.write(str(doc_model))
-    fm.close()
     criterion = nn.CrossEntropyLoss(reduction="none")
 
-    print(sum(p.numel() for p in doc_model.parameters() if p.requires_grad))
     model_opt = AdamW(filter(lambda p : p.requires_grad, doc_model.parameters()),
                            lr=args.lr,
                            betas=(args.b1,args.b2),
                            eps=args.e)
-                           #l2=args.l2,
-                           #vector_l2=args.vector_l2,
-                           #max_grad_norm=args.max_grad_norm)
-                           #
-                           #schedule=args.lr_schedule,
-                           #warmup=args.lr_warmup,
-                           #t_total=n_updates_total,
 
     lm_loss = ParagraphLoss(criterion, n_ctx=n_ctx, gen_len=gen_len)
-    auxloss=False
 
     print("Loading Model")
     doc_model.to(device)
@@ -347,13 +310,15 @@ def main(args):
 
     start_iter, running_loss = load_checkpoint(args.checkpoint, doc_model, model_opt)
     for i in range(args.num_epochs):
-        start_iter, running_loss, bestloss, updates, val_loss1 = run_epoch(bestloss, start_iter, running_loss, doc_model, lm_loss, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k, p, decoding_strategy, accum_iter, "FT Training Epoch [{}/{}]".format(i + 1, args.num_epochs), save_dir, logger, text_encoder, show_progress=args.show_progress, auxloss=False, my_local_dir=save_dir_local)
+        start_iter, running_loss, bestloss, updates, val_loss1 = run_epoch(bestloss, start_iter, running_loss, doc_model, lm_loss, model_opt, train_loader, val_loader, train_log_interval, val_log_interval, device, beam, gen_len, k, p, decoding_strategy, accum_iter, "FT Training Epoch [{}/{}]".format(i + 1, args.num_epochs), save_dir, logger, text_encoder, show_progress=args.show_progress, my_local_dir=save_dir_local)
         print("VAL LOSS: ", str(val_loss1))
         if val_loss1 > prevloss or math.isnan(val_loss1):
             break
         prevloss = val_loss1
-        #if len(prevloss) >= 3 and cumloss >= prevloss[-3] and prevloss[-1] >= prevloss[-3] and prevloss[-2] >= prevloss[-3]:
-        #    break
+
+
+    print('Done training...')
+    print('Evaluating on validation with best checkpoint...')
 
     bestcheck = os.path.join(save_dir,"checkpoint_best.pt")
     checkpoint = torch.load(bestcheck, map_location='cpu')
@@ -361,7 +326,6 @@ def main(args):
     if state_dict.get('module.pos_emb_mask') is None and  doc_model.state_dict().get('module.pos_emb_mask') is not None:
         state_dict['module.pos_emb_mask'] = doc_model.state_dict().get('module.pos_emb_mask') 
     doc_model.load_state_dict(state_dict)
-    #val_loader = get_paragraph_input_loader(os.path.join(data_dir, "val_encoded.jsonl"), n_gpu, text_encoder, num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_neigh= args.use_neighbor_feat)
     evaluate_doc_model(doc_model, val_loader, text_encoder, device, beam, gen_len, k, p, args.decoding_strategy, os.path.join(save_dir,'valeval.log'), 'gen','tgt', gen_len, [], args)
 
 
@@ -370,7 +334,6 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--desc', type=str, help="Description")
-
     parser.add_argument('--output_hidden_states', action='store_true')
     parser.add_argument('--output_attentions', action='store_true')
     parser.add_argument('--output_past', action='store_true')
@@ -392,41 +355,36 @@ if __name__ == "__main__":
     parser.add_argument('--opt', type=str, default='adam')
     parser.add_argument('--afn', type=str, default='gelu')
     parser.add_argument('--lr_schedule', type=str, default='warmup_linear')
-    parser.add_argument('--encoder_path', type=str, default='model/encoder_bpe_40000.json')
-    parser.add_argument('--vocab_path', type=str, default='model/vocab_40000.bpe')
     parser.add_argument('--n_transfer', type=int, default=12)
     parser.add_argument('--lm_coef', type=float, default=0.5)
     parser.add_argument('--b1', type=float, default=0.9)
     parser.add_argument('--b2', type=float, default=0.999)
     parser.add_argument('--e', type=float, default=1e-8)
     # Custom
-    parser.add_argument('--output_dir', type=str, default=os.getenv('PT_OUTPUT_DIR', '/tmp'))
-    parser.add_argument('--experiment_name', type=str, required=True)
-    parser.add_argument('--data_dir', type=str, default='data')
-
-    parser.add_argument('--train_log_interval', type=int, default=100)
-    parser.add_argument('--val_log_interval', type=int, default=2000)
-    parser.add_argument('--num_val_examples', type=int, default=None)
-    parser.add_argument('--beam', type=int, default=0)
-    parser.add_argument('--k', type=int, default=0)
-    parser.add_argument('--p', type=int, default=0)
-    parser.add_argument('--decoding_strategy', type=int, default=0)
-    parser.add_argument('--accum_iter', type=int, default=2)
-    parser.add_argument('--gen_len', type=int, default=922)
-    parser.add_argument('--n_ctx', type=int, default=102)
+    parser.add_argument('--output_dir', type=str, default=os.getenv('PT_OUTPUT_DIR', '/tmp'), help='directory to save logs and checkpoints to')
+    parser.add_argument('--experiment_name', type=str, required=True, help='name of this experiment will be included in output')
+    parser.add_argument('--data_dir', type=str, default='data', help='directory with train, dev, test files')
+    parser.add_argument('--train_log_interval', type=int, default=100, help='number of train steps before logging training progress')
+    parser.add_argument('--val_log_interval', type=int, default=2000, help='number of train steps before logging validation progress')
+    parser.add_argument('--num_val_examples', type=int, default=None, help='max number of validation examples, or None:use all data')
+    parser.add_argument('--beam', type=int, default=0, help='beam size for beam search - not in use')
+    parser.add_argument('--k', type=int, default=0, help='k for TopK sampling')
+    parser.add_argument('--p', type=int, default=0, help='p for Nucleus sampling')
+    parser.add_argument('--decoding_strategy', type=int, default=0, help='not in use')
+    parser.add_argument('--accum_iter', type=int, default=2, help='number of batches to accumulate gradiencts before doing backprop')
+    parser.add_argument('--gen_len', type=int, default=922, help='max generation length + 1 for end token')
+    parser.add_argument('--n_ctx', type=int, default=102, help='max outline length + 2 for delimiters')
     parser.add_argument('--show_progress', action='store_true')
-    parser.add_argument('--use_neighbor_feat', action='store_true')
-    parser.add_argument('--exclude_kw', action='store_true')
-    parser.add_argument('--max_ex', type=int, default=None)
-    parser.add_argument('--min_len', type=int, default=100)
-    parser.add_argument('--repeattheta', type=float, default=1.5)
-    parser.add_argument('--memstatesize', type=int, default=10)
-    parser.add_argument('--use_model', type=str, choices=['vanilla', 'full', 'memory'])
-
-    parser.add_argument('--use_kwmem', action='store_true')
-    parser.add_argument('--use_dual_att', action='store_true')
+    parser.add_argument('--exclude_kw', action='store_true', help='unconditional baseline')
+    parser.add_argument('--max_ex', type=int, default=None, help='max number of train examples, or None:use all training data')
+    parser.add_argument('--min_len', type=int, default=100, help='minimum generation length')
+    parser.add_argument('--repeattheta', type=float, default=1.5, help='how much to penalize repitition (1 is not at all, > 1 is more penalty)')
+    parser.add_argument('--memstatesize', type=int, default=100, help='size of global document state portion of memory (default:100)')
+    parser.add_argument('--use_model', type=str, choices=['base', 'plotmachines'], help='full plotmachines (w/ memory) vs base gpt (no memory)')
+    parser.add_argument('--use_neighbor_feat', action='store_true', help='use neighboring (previous) paragraph encoding as extra input')
+    parser.add_argument('--use_discourse', action='store_true', help='use discouse tokens as extra input')
     parser.add_argument('--use_offline_gpt2', action='store_true')
-    parser.add_argument('--checkpoint', type=str, default=None)
+    parser.add_argument('--checkpoint', type=str, default=None, help='location of a previous checkpoint')
     parser.add_argument('--debug_mode', action='store_true')
 
     args = parser.parse_args()

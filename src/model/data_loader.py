@@ -7,8 +7,13 @@ from pytorch_transformers import *
 import pickle
 
 
+
+'''Paragraph Dataset: get a single paragraph from a story
+optionally include the previous paragraph encoding (inckude_neigh)
+optionally include discourse tag delimiter (include_discourse_type)
+'''
 class ParagraphDataset(Dataset):
-    def __init__(self, data_file, encoder, max_size=None, n_ctx=102, n_gen=401, include_neigh=False, include_curr=False,
+    def __init__(self, data_file, encoder, max_size=None, n_ctx=102, n_gen=401, include_neigh=False,
                  include_discourse_type=True, include_kw=True, dim=0 ,debug_mode=False):
         with open(data_file, "rb") as f:
             self.data = f.readlines()
@@ -45,20 +50,9 @@ class ParagraphDataset(Dataset):
         self.dim = dim
         self.len = len(self.data)
         self.include_neigh = include_neigh
-        self.include_curr = include_curr
         self.include_discourse_type = include_discourse_type
         self.include_kw = include_kw
 
-    '''def bertrep(self,textline):
-        nb = 1
-        #if nb < 8:
-        wds = torch.zeros(1, 512, dtype=torch.long) + self.tokenizer.convert_tokens_to_ids(['[PAD]'])[0]
-        temp = torch.tensor(self.tokenizer.convert_tokens_to_ids(["[CLS]"]+ self.tokenizer.tokenize(textline)[:500] + ["[SEP]"]))
-        wds[0,:len(temp)] = temp #temp.cuda()
-        self.model.eval()
-        outputs = self.model(wds)
-        clfone = outputs[1].detach() #.cpu()
-        return clfone.squeeze()'''
 
     def __getitem__(self, index):
         idx = self.dids[index]
@@ -75,12 +69,6 @@ class ParagraphDataset(Dataset):
         cstart = torch.LongTensor([self.encoder.convert_tokens_to_ids('_c_')])
         keytok = torch.LongTensor([self.encoder.convert_tokens_to_ids('_kw_')])
         endkeytok = torch.LongTensor([self.encoder.convert_tokens_to_ids('_endkw_')])
-        getstart = {"I": istart,
-                    "B": bstart,
-                    "C": cstart,
-                    "T": tstart,
-                    }
-
         if self.include_discourse_type:
             starttyptok = bstart
             if int(csv_data[0].split("_")[-1]) == 0:
@@ -93,10 +81,7 @@ class ParagraphDataset(Dataset):
         pad_output = torch.zeros(self.ctx + self.gen + 3).long()
         mask_output = torch.zeros(self.ctx + self.gen + 3).long()
 
-        # print(tgt_phrase)
-        # Tokens
         pad_output[0] = start
-
         if self.include_kw:
             i = 1
             for k in kws:
@@ -110,7 +95,7 @@ class ParagraphDataset(Dataset):
             pad_output[i - 1] = endkeytok
             mask_output[0:i] = torch.ones(i).long()
 
-        pad_output[self.ctx + 1] = starttyptok if self.include_discourse_type else clstok
+        pad_output[self.ctx + 1] = starttyptok if self.include_discourse_type else clstok  # [101] -> discourse tag
         pad_output[self.ctx + 1 + 1:self.ctx + 1 + 1 + len(tgt_phrase)] = torch.LongTensor(tgt_phrase)
         pad_output[self.ctx + 1 + 1 + len(tgt_phrase)] = end
 
@@ -118,30 +103,44 @@ class ParagraphDataset(Dataset):
         mask_output[self.ctx + 1:self.ctx + 1 + len(tgt_phrase) + 2] = torch.ones(len(tgt_phrase) + 2).long()
 
         if self.include_neigh:
-            # n = self.bertrep(csv_data[-1].replace("<o>",""))
             n = torch.FloatTensor(self.prev[idx].flatten())
         else:
             n = torch.zeros(self.dim, dtype=torch.float64)
-        if self.include_curr:
-            c = torch.FloatTensor(self.curr[idx].flatten())
-        else:
-            c = torch.zeros(self.dim, dtype=torch.float64)
-        return pad_output, mask_output, n, c
+        return pad_output, mask_output, n
 
     def __len__(self):
         return len(self.dids)
 
+'''
+get_paragraph_input_loader: Get data loader for plot machines
 
+@params-
+data_file: the file location for the data
+encoder: tokenizer
+max_size: truncate to # examples (or None to use full dataset)
+n_ctx: number of plotoutline tokens + 2 for delimiters
+gen_len: number of paragraph tokens + 1 for end token
+include_neigh: whether to return the neighboring (previous) paragraph encoding
+include_discourse_type: whether to use special discouse tokens
+include_kw: unused, if I want to ignore the context
+dim: the dimension of the neighboring (previous) paragraph vectors (should be same as the PlotMachines embeddings)
+debug_mode: make a toy dataset for debugging
+'''
 def get_paragraph_input_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None, n_ctx=102,
                                gen_len=401, include_neigh=False, include_discourse_type=True, include_kw=True,
-                               include_curr=False, dim=768, debug_mode=False):
+                               dim=768, debug_mode=False):
     dataset = ParagraphDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len,
-                               include_neigh=include_neigh, include_curr=include_curr,
-                               include_discourse_type=include_discourse_type, include_kw=include_kw, dim=dim,debug_mode=debug_mode)
+                               include_neigh=include_neigh,include_discourse_type=include_discourse_type, 
+                               include_kw=include_kw, dim=dim,debug_mode=debug_mode)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
 
 
-class DocumentDataset(Dataset):
+
+
+'''
+FullStory Dataset: get a full multi-paragraph story
+'''
+class FullStoryDataset(Dataset):
     def __init__(self, data_file, encoder, max_size=None, n_ctx=102, n_gen=401, include_kw=True):
         self.data = []
 
@@ -168,7 +167,7 @@ class DocumentDataset(Dataset):
         csv_data = self.dids[index].split('\t')
         kws = csv_data[1].split("[SEP]")
 
-        tgt_phrase = []
+        tgt_phrase = [] # this is only used at generation time, so ignore the gold
         start = torch.LongTensor([self.encoder.bos_token_id])
         clstok = torch.LongTensor([self.encoder.cls_token_id])
         end = torch.LongTensor([self.encoder.eos_token_id])
@@ -200,10 +199,8 @@ class DocumentDataset(Dataset):
             mask_output[0:i] = torch.ones(i).long()
 
         pad_output[self.ctx + 1] = clstok
-        pad_output[self.ctx + 1 + 1:self.ctx + 1 + 1 + len(tgt_phrase)] = torch.LongTensor(tgt_phrase)
-        pad_output[self.ctx + 1 + 1 + len(tgt_phrase)] = end
 
-        # Mask
+        # Mask (this will get written over by the generation code anyways)
         mask_output[self.ctx + 1:self.ctx + 1 + len(tgt_phrase) + 2] = torch.ones(len(tgt_phrase) + 2).long()
 
         ids = csv_data + [index]
@@ -212,14 +209,28 @@ class DocumentDataset(Dataset):
     def __len__(self):
         return len(self.dids)
 
+'''
+get_fullstory_loader: Get single story context
 
-def get_document_full_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None, n_ctx=102,
+@params-
+data_file: the file location for the data
+encoder: tokenizer
+max_size: truncate to # examples (or None to use full dataset)
+n_ctx: number of plotoutline tokens + 2 for delimiters
+gen_len: number of paragraph tokens + 1 for end token
+include_kw: unused, if I want to ignore the context
+'''
+def get_fullstory_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None, n_ctx=102,
                              gen_len=401, include_kw=True):
     dataset = DocumentDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len, include_kw=include_kw)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
 
 
-class ParagraphWithHistoryDataset(Dataset):
+
+'''Paragraph Dataset: get a single paragraph from a story with memory for PlotMachines model
+optionally include discourse tag delimiter (include_discourse_type)
+'''
+class ParagraphWithMemoryDataset(Dataset):
     def __init__(self, data_file, encoder, max_size=None, n_ctx=102, n_gen=401, include_discourse_type=True,
                  include_kw=True, memsize=10, dim=768, use_kwmem=False, debug_mode=False):
 
@@ -262,9 +273,6 @@ class ParagraphWithHistoryDataset(Dataset):
                     continue
 
                 temp_data.append(self.data[k])
-                # if len(self.data[k].decode('utf-8', 'ignore').split("\t"))==0 or len(temp)<2:
-                #     continue
-                # assert temp[0] == k and temp[1] == self.data[k].decode('utf-8', 'ignore').split("\t")[-1].replace("<o>","").strip()
                 self.prevmat.append(temp[2])
 
         self.data = temp_data
@@ -297,8 +305,6 @@ class ParagraphWithHistoryDataset(Dataset):
         self.gen = n_gen - 1
         self.memsize = memsize
         self.len = len(self.data)
-        # self.include_neigh= include_neigh
-        # self.include_curr= include_curr
         self.include_discourse_type = include_discourse_type
         self.include_kw = include_kw
         self.h = 10
@@ -321,11 +327,6 @@ class ParagraphWithHistoryDataset(Dataset):
         cstart = torch.LongTensor([self.encoder.convert_tokens_to_ids('_c_')])
         keytok = torch.LongTensor([self.encoder.convert_tokens_to_ids('_kw_')])
         endkeytok = torch.LongTensor([self.encoder.convert_tokens_to_ids('_endkw_')])
-        getstart = {"I": istart,
-                    "B": bstart,
-                    "C": cstart,
-                    "T": tstart,
-                    }
 
         if self.include_discourse_type:
             starttyptok = bstart
@@ -393,11 +394,26 @@ class ParagraphWithHistoryDataset(Dataset):
     def __len__(self):
         return len(self.dids)
 
+'''
+get_paragraph_history_input_loader: Get data loader for plot machines
 
-def get_paragraph_history_input_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None,
+@params-
+data_file: the file location for the data
+encoder: tokenizer
+max_size: truncate to # examples (or None to use full dataset)
+n_ctx: number of plotoutline tokens + 2 for delimiters
+gen_len: number of paragraph tokens + 1 for end token
+include_discourse_type: whether to use special discouse tokens
+include_kw: unused, if I want to ignore the context
+memsize: the total number of memory slots (aside from the keyword slots)
+dim: the dimension of the memory slot vectors (should be same as the PlotMachines embeddings)
+use_kwmem: use keyword-based memory slots in the memory
+debug_mode: make a toy dataset for debugging
+'''
+def get_paragraph_memory_input_loader(data_file, batch_size, encoder, shuffle=True, num_workers=0, max_size=None,
                                        n_ctx=102, gen_len=401, include_neigh=False, include_discourse_type=True,
-                                       include_kw=True, include_curr=False, memsize=10, dim=768, use_kwmem=False, debug_mode=False):
-    dataset = ParagraphWithHistoryDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len,
+                                       include_kw=True, memsize=10, dim=768, use_kwmem=False, debug_mode=False):
+    dataset = ParagraphWithMemoryDataset(data_file, encoder, max_size=max_size, n_ctx=n_ctx, n_gen=gen_len,
                                           include_discourse_type=include_discourse_type, include_kw=include_kw,
                                           memsize=memsize, dim=dim, use_kwmem=use_kwmem, debug_mode=debug_mode)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, drop_last=True)
