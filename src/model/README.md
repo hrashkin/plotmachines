@@ -60,8 +60,11 @@ E.g.:
 ### Output format
 At the end of running the generated story outputs are stored in `output_dir`:
   - `{val/test}eval.tsv`: generated stories
+  
 Note, each row is a single story paragraph and the paragraphs of each story might not be in contiguous order.
+
 Each row contains:
+
 ```story-idx story-name  plot-outline paragraph-idx  paragraph-text```
 
 
