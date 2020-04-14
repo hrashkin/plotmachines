@@ -264,12 +264,12 @@ class GPT2BaseModel(nn.Module):
 
     def generate(self, *args, text_encoder=None, device=None, beam=0, gen_len=401, k=0, p=0, decoding_strategy=0, min_len=None):
         ##print(len(args))
-        #if len(args) == 5:
-        pad_output, mask, prev, seen_trigrams, idxes = args
-        #else:
-        #    pad_output, mask, prev = args
-        #    seen_trigrams = torch.ones(pad_output.size(0), len(text_encoder)).to(pad_output.device)
-        #    idxes = None
+        if len(args) == 5:
+            pad_output, mask, prev, seen_trigrams, idxes = args
+        else:
+            pad_output, mask, prev = args
+            seen_trigrams = torch.ones(pad_output.size(0), len(text_encoder)).to(pad_output.device)
+            idxes = None
         classify_idx = None  # don't use this in the code anymore
         eos_idx = text_encoder.eos_token_id
         input_toks = pad_output[:, :self.n_ctx] # includes delimiter
