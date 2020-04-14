@@ -65,7 +65,7 @@ Note, each row is a single story paragraph and the paragraphs of each story migh
 
 Each row contains:
 
-```story-idx story-name  plot-outline paragraph-idx  paragraph-text```
+```story-idx \t story-name \t plot-outline \t paragraph-idx \t paragraph-text```
 
 
 
