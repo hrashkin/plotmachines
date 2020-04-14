@@ -4,6 +4,5 @@ rouge
 nltk
 ftfy
 spacy
-spacy download en
 pytorch-transformers
 transformers
