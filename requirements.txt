@@ -3,7 +3,6 @@ pyrouge
 rouge
 nltk
 ftfy
-nltk.downloader all
 spacy
 spacy download en
 pytorch-transformers
