@@ -34,4 +34,4 @@ Lastly, run the <a href="./extract_outlines.py">extract_outlines.py</a> to extra
 
 ### After Pre-Processing 
 
-Once the files are generated, rename the preprocessed files as "train_encoded.jsonl", "val_encoded.jsonl", "test_encoded.jsonl" and place them under "data_dir" folder specified during the fine-truning script in 
+Once the files are generated, rename the preprocessed files as "train_encoded.jsonl", "val_encoded.jsonl", "test_encoded.jsonl" and place them under "data_dir" folder specified during the fine-truning script in "train.py"
