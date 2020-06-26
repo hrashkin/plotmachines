@@ -15,9 +15,10 @@ TfidfVectorizer
 
 ### WikiPlots
 
-<a href="https://github.com/markriedl/WikiPlots">The Wikiplots corpus</a> consists of plots of movies, TV shows, and books scraped from Wikipedia. 
-Please use the scripts provided in the link to extract the dataset. Then use the script <a href="./wikiplots_splits.txt">wikiplots_splits.txt</a> to construct the train, validation and text datasets that were used in the paper.
+<a href="https://github.com/markriedl/WikiPlots">The Wikiplots corpus</a> consists of plots of movies, TV shows, and books scraped from Wikipedia.
+Please use the scripts provided in the link to extract the dataset.  You need to make changes to line 81 of their code to insert '< p >' paragraph markers instead of replacing newlines with spaces. Then use the script <a href="./wikiplots_splits.txt">wikiplots_splits.txt</a> to construct the train, validation and text datasets that were used in the paper.
 
+Note: Some plots should be excluded from the data and marked as 'flagged' instead of train/dev/test in the splits file.  These are stories that we have identified as offensive content.  We are continuing to prune the data to remove examples of these stories, so please let us know if you find stories that you think should be removed.
 
 ### WritingPrompts
 
