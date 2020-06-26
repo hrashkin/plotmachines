@@ -186,7 +186,7 @@ def main(args):
 
     vocab = len(text_encoder)
 
-    datafile = os.path.join(data_dir, "test_encoded.jsonl") if args.testset else os.path.join(data_dir, "val_encoded.jsonl")
+    datafile = os.path.join(data_dir, "test_encoded.csv") if args.testset else os.path.join(data_dir, "val_encoded.csv")
     print("Loading dataset...")
     val_loader = get_fullstory_loader(datafile, args.n_batch, text_encoder, num_workers=0, shuffle=False, gen_len=gen_len, n_ctx=n_ctx, include_kw = not args.exclude_kw, max_size=args.max_ex)
     print(len(val_loader))

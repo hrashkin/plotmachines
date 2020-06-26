@@ -112,7 +112,7 @@ abstract_lens = {}
 sentences_to_write = []
 w = 0
 total = 0
-sentences_to_write.append("[ID]\t[KEY/ABSTRACT]\t[KEYWORDS]\t[DISCOURSE (T/I/B/C)]\t[NUM_PARAGRAPHS]\t[PARAGRAPH]\n")
+sentences_to_write.append("[ID]\t[KEY/ABSTRACT]\t[KEYWORDS]\t[DISCOURSE (T/I/B/C)]\t[NUM_PARAGRAPHS]\t[PARAGRAPH]\t[PREVIOUS_PARAGRAPH]\n")
 
 title_id = 0
 for l in range(len(lines)):
