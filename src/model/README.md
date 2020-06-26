@@ -23,7 +23,7 @@ E.g.:
 
 
 ### Important command line arguments:
-  - ```use_neighbor_feat``` : use representation of previous paragraph in input (i.e neighboring features)
+  - ```use_neighbor_feat``` : use representation of previous paragraph in input (i.e preceding context)
   - ```use_discourse``` : whether to use discourse type tags (`_i_`,`_b_`,`_c_`) or not
   - ```use_model={base/plotmachines}```: either the base gpt model without memory, or PlotMachines with memory
   - ```memstatesize={int}```: size of additional memory slots aside from the ones initialized from the outline (default:100)
@@ -48,6 +48,8 @@ E.g.:
 ### Important command line arguments:
   - ```bodynum={int}```: number of body paragraphs to generate (default=3, for 5 paragraph format)
   - ```testset```: use test set instead of validation
+  - ```use_neighbor_feat``` : use representation of previous paragraph in input (i.e preceding context)
+  - ```use_discourse``` : whether to use discourse type tags (`_i_`,`_b_`,`_c_`) or not
   - ```use_model={base/plotmachines}```: either the base gpt model without memory, or PlotMachines with memory
   - ```memstatesize={int}```: size of additional memory slots aside from the ones initialized from the outline (default:100)
   - ```n_batch={int}```: must be mulitple of number of gpus

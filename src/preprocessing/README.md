@@ -33,3 +33,6 @@ We use the scripts to parse NYT corpus and then split into train, validation and
 Lastly, run the <a href="./extract_outlines.py">extract_outlines.py</a> to extract the outline-labeled documents that can be used as input to the train Plotmachines fine-tuning models. This script can extract the wikiplots data. 
 
 
+### After Pre-Processing 
+
+Once the files are generated, rename the preprocessed files as "train_encoded.jsonl", "val_encoded.jsonl", "test_encoded.jsonl" and place them under "data_dir" folder, which is specificied as input parameter to the fine-truning script "train.py".
