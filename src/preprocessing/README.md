@@ -37,7 +37,7 @@ Lastly, run the <a href="./extract_outlines.py">extract_outlines.py</a> to extra
 
 Once the files are generated, rename the preprocessed files as "train_encoded.csv", "val_encoded.csv", "test_encoded.csv" and place them under "data_dir" folder, which is specificied as input parameter to the fine-truning script "train.py".
 
-### Creating Pickle Files
+### Creating Pickle Files for h\_{i-1}
 
 Our model expects there to be a &lowast;\_gpt.pkl or &lowast;\_gpt2.pkl file in the directory (depending on command line settings).  
 In our paper, we talk about using an encoded representation of the previous paragraph (h\_{i-1}) which we computed using either gpt or gpt2 (depending on the PlotMachines settings).  To compute that, we used <a href="https://github.com/hrashkin/plotmachines/blob/65f3b4d79bdb7a14811c323becdc3fb78bdeb375/src/model/generate_stories.py#L17">this function here</a> which computes an average output embedding.  For training time, we precomputed h\_{i-1} from gold paragraphs and stored in pickle (pkl) files. 
@@ -46,6 +46,6 @@ For each row in the input csv files, there is an entry in the pickle file which 
  - index in the csv data file (header row = 0)
  - string version of the previous paragraph (which has to match the last column from the input csv/jsonl files).
  - a vector representing the previous paragraph  
- 
+
 Please note: in order to match indices with the input files, there needs to be a "dummy" encoding at the beginning of the pickle file to line up with the header row of the input csv. That row will get ignored in the code.
 
