@@ -43,9 +43,9 @@ Please use the splits from <a href="./wikiplots_splits.txt">wikiplots_splits.txt
 #### 4) Steps for removing offensive content: 
 a) Some plots should be excluded from the data and are marked as 'flagged' instead of train/dev/test in the splits file.  These are stories that we have identified as coming from summaries of books/movies that are known to be offensive, racist, and/or highly controversial content. We identified these stories by filtering with the Perspective API and then manually checking. Because of the use of automatic Perspective models, there may be a few offensive stories still remaining in the data.  We are continuing to prune the data to remove examples of these stories, so please let us know if you find offensive stories.
 
-b) Some plots may have instance of offensive language (swear words, slurs), so we advise all users of the data to first pre-process the data by replacing these words with some sort of special token BEFORE training.
+b) Some plots may have instances of offensive language (swear words, slurs) even though the story overall is not offensive.  Before training, first pre-process the data by replacing these words with some sort of special token (or remove them) to avoid training a model that uses offensive language.
 
-c) Even when taking these steps, there may be a few underlying themes in some stories that don't match modern values (for example, many older stories may express outdated views about gender roles).  There also may be stories containing sexual and violent content.  We therefore caution anyone using this data to be very careful in how they use models that are trained using these stories.  Please filter output as necessary and appropriate for your task.
+c) Even when taking these steps, there may be a few underlying themes in some stories that don't match modern values (for example, many older stories may express outdated views about gender roles).  There also may be stories containing sexual and violent content that - depending on the end use - may not be appropriate for a model to be trained on.  We therefore caution anyone using this data to be very careful in how they use models that are trained using these stories.  Please moderate output as necessary and appropriate for your end task.
 
 ### WritingPrompts
 
