@@ -3,7 +3,7 @@ This repo includes the dataset extraction and preprocessing scripts.
 
 We construct three datasets for outline-conditioned generation. We focus on fictitious generation, but also include the news domain for generalization.  We build on existing publicly available datasets for the  target  narratives,  paired  with  automatically constructed input outlines as described in detail in our paper. Here we provide the dataset ids to and the preprocessing scripts to construct the train/validation/test splits for experimentation.
 
-### Prerequisites
+## Prerequisites
 
 numpy
 
@@ -13,6 +13,7 @@ nltk
 
 TfidfVectorizer
 
+## Processing Data
 ### WikiPlots
 
 #### 1) Steps for downloading
@@ -59,7 +60,7 @@ We use the scripts to parse NYT corpus and then split into train, validation and
 Lastly, run the <a href="./extract_outlines.py">extract_outlines.py</a> to extract the outline-labeled documents that can be used as input to the train Plotmachines fine-tuning models. This script can extract the wikiplots data. 
 
 
-### After Pre-Processing 
+## After Pre-Processing 
 
 Once the files are generated, rename the preprocessed files as "train_encoded.csv", "val_encoded.csv", "test_encoded.csv" and place them under "data_dir" folder, which is specificied as input parameter to the fine-truning script "train.py".
 
