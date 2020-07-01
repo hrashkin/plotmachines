@@ -1934,7 +1934,7 @@ plot-1935	train
 plot-1936	dev
 plot-1937	train
 plot-1938	train
-plot-1939	test
+plot-1939	flagged
 plot-1940	train
 plot-1941	train
 plot-1942	train
@@ -2640,7 +2640,7 @@ plot-2643	train
 plot-2644	train
 plot-2645	train
 plot-2646	train
-plot-2647	dev
+plot-2647	flagged
 plot-2648	train
 plot-2649	test
 plot-2650	train
@@ -19710,7 +19710,7 @@ plot-19737	test
 plot-19738	train
 plot-19739	train
 plot-19740	train
-plot-19741	dev
+plot-19741	flagged
 plot-19742	train
 plot-19743	train
 plot-19744	train
@@ -25655,7 +25655,7 @@ plot-25688	train
 plot-25689	dev
 plot-25690	train
 plot-25691	test
-plot-25692	test
+plot-25692	flagged
 plot-25693	train
 plot-25694	train
 plot-25695	train
@@ -36195,7 +36195,7 @@ plot-36264	train
 plot-36265	train
 plot-36266	train
 plot-36267	train
-plot-36268	dev
+plot-36268	flagged
 plot-36269	train
 plot-36270	train
 plot-36271	train
@@ -49230,7 +49230,7 @@ plot-49333	train
 plot-49334	train
 plot-49335	train
 plot-49336	train
-plot-49337	test
+plot-49337	flagged
 plot-49338	train
 plot-49339	train
 plot-49340	train
@@ -104556,7 +104556,7 @@ plot-105087	train
 plot-105088	train
 plot-105089	train
 plot-105090	train
-plot-105091	dev
+plot-105091	flagged
 plot-105092	train
 plot-105093	train
 plot-105094	train
