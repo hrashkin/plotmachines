@@ -13,7 +13,7 @@ nltk
 
 TfidfVectorizer
 
-## Processing Data
+## Pre-processing Data
 ### WikiPlots
 
 #### 1) Steps for downloading
