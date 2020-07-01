@@ -18,7 +18,12 @@ TfidfVectorizer
 <a href="https://github.com/markriedl/WikiPlots">The Wikiplots corpus</a> consists of plots of movies, TV shows, and books scraped from Wikipedia.
 Please use the scripts provided in the link to extract the dataset.  You need to make changes to <a href="https://github.com/markriedl/WikiPlots/blob/22d975c92e1ac835a412ac001d95fb86d3d37960/wikiPlots.py#L81">line 81</a> of their code to replace '\n' with'&lt;p&gt;' paragraph markers instead of with spaces. Then use the splits from <a href="./wikiplots_splits.txt">wikiplots_splits.txt</a> to construct the train, validation and text datasets that were used in the paper.
 
-Note: Some plots should be excluded from the data and are marked as 'flagged' instead of train/dev/test in the splits file.  These are stories that we have identified as offensive content.  We are continuing to prune the data to remove examples of these stories, so please let us know if you find stories that you think should be removed.
+#### Steps for removing offensive content: 
+1) Some plots should be excluded from the data and are marked as 'flagged' instead of train/dev/test in the splits file.  These are stories that we have identified as coming from summaries of books/movies that are known to be offensive, racist, and/or highly controversial content. We identified these stories by filtering with the Perspective API and then manually checking. Because of the use of automatic Perspective models, there may be a few offensive stories still remaining in the data.  We are continuing to prune the data to remove examples of these stories, so please let us know if you find offensive stories.
+
+2) Some plots may have instance of offensive language (swear words, slurs), so we advise all users of the data to first pre-process the data by replacing these words with some sort of special token BEFORE training.
+
+3) Even when taking these steps, there may be a few underlying themes in some stories that don't match modern values (for example, many older stories may express outdated views about gender roles).  We therefore caution anyone using this data to be very careful in how they use models that are trained using these stories.  Please filter output as necessary and appropriate for your task.
 
 ### WritingPrompts
 
