@@ -42,17 +42,17 @@ The output will provide you with a csv of the outlines and stories where each ro
 Please use the splits from <a href="./wikiplots_splits.txt">wikiplots_splits.txt</a> to construct the train, validation and text datasets that were used in the paper.  Note that some stories may be need to be removed (marked "flagged") due to potentially offensive and/or harmful content.
 
 #### 4) Steps for removing offensive content: 
-##### A) Offensive story removal:
+#### A) Offensive story removal:
 
 Some plots should be excluded from the data and are marked as 'flagged' instead of train/dev/test in the splits file.  These are stories that we have identified as coming from summaries of books/movies that are probably offensive.  We mostly try to remove stories that attack someone's identity (e.g. racist propaganda) or are problematically lurid. 
 
-Details about how these stories were identified: we first used automatic toxicity models (using the Perspective API toxicity model) to identify about 1500 stories that had toxicity scores above a certain threshold.  We skimmed the automatically curated list of toxic stories and manually corrected the labels of about 200 of those stories that we believe were misclassified.  The remaining 1300 stories have been flagged in the data splits files.  There are limitations to this hybrid automatic/manual approach, and there may be some stories that were misclassified (either incorrectly labelled as inoffensive or incorrectly labelled as offensive).  We are continuing to prune the data to remove examples of offensive stories, so please let us know if you find any that we've missed.
+Details about how these stories were identified: we first used automatic toxicity models (using the Perspective API) to identify about 1500 stories that had toxicity scores above a certain threshold.  We skimmed the automatically curated list of toxic stories and manually corrected the labels of about 200 of those stories that we believe were misclassified.  The remaining 1300 stories have been flagged in the data splits files.  There are limitations to this hybrid automatic/manual approach, and there may be some stories that were misclassified (either incorrectly labelled as inoffensive or incorrectly labelled as offensive).  We are continuing to prune the data to remove examples of offensive stories, so please let us know if you find any that we've missed.
 
-##### B) Offensive words:
+#### B) Offensive words:
 
 Some stories may have instances of offensive words even though the overall story is not offensive.  Before training, you should check for swear words, slurs, etc.  We recommend adding a pre-processing step to replace these words with some special token.
 
-##### C) Additional precautions:
+#### C) Additional precautions:
 
 Even when taking these steps, there may be a few underlying themes in some stories that don't match modern values (for example, many older stories may express outdated views about gender roles).  There also may be stories containing sexual and violent content that - depending on the end use - may be inappropriate for a model to be trained on.  We therefore caution anyone using this data to be very careful in how they use models that are trained using these stories.  Please moderate output as necessary and appropriate for your end task.
 
