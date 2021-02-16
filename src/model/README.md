@@ -3,7 +3,7 @@
 
 pytorch
 
-transformers
+transformers (v. 2.0.0)
 
 spacy
 
