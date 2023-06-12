@@ -5,4 +5,4 @@ nltk
 ftfy
 spacy
 pytorch-transformers
-transformers == 2.0.0
+transformers == 4.30.0
